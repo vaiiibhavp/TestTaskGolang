@@ -1,0 +1,15 @@
+server:
+  port: 8082
+  readtimeout: 2s
+  writetimeout: 2s
+  idletimeout: 100ms
+middleware:
+  authServiceEndpoint: "http://localhost:8080/auth"
+logger:
+  logLevel: 0
+db:
+  driver: "mysql"
+  host: "localhost"
+  user: "root"
+  pass: "password"
+  name: "rosdb"

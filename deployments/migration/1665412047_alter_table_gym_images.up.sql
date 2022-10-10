@@ -1,0 +1,1 @@
+alter table gym_images alter column label type varchar(255);

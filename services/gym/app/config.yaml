@@ -1,0 +1,14 @@
+server:
+  port: 4000
+  readtimeout: 2s
+  writetimeout: 2s
+  idletimeout: 100ms
+middleware:
+logger:
+  logLevel: 0
+db:
+  driver: "postgres"
+  host: "localhost"
+  user: "postgres"
+  pass: "postgres"
+  name: "gym"

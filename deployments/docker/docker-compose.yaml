@@ -1,0 +1,98 @@
+version: '3.9'
+
+services:
+  admin:
+    build:
+      context: .
+      dockerfile: ./deployments/docker/Dockerfile.service.admin
+    # TODO: Do we need it to be accesible to outside world
+    # ports:
+    #   - "8083:8083"
+    depends_on:
+      database:
+        condition: service_healthy
+    deploy:
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+  auth:
+    build:
+      context: .
+      dockerfile: ./deployments/docker/Dockerfile.service.admin
+    # ports:
+    #   - "8083:8083"
+    depends_on:
+      database:
+        condition: service_healthy
+    deploy:
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+  catalog:
+    build:
+      context: .
+      dockerfile: ./deployments/docker/Dockerfile.service.admin
+    # ports:
+    #   - "8083:8083"
+    depends_on:
+      database:
+        condition: service_healthy
+    deploy:
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+  user:
+    build:
+      context: .
+      dockerfile: ./deployments/docker/Dockerfile.service.admin
+    # ports:
+    #   - "8083:8083"
+    depends_on:
+      database:
+        condition: service_healthy
+    deploy:
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+  database:
+    image: mysql
+    volumes:
+      - ros-database:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=rosdb
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 20s
+      retries: 10
+    deploy:
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+volumes:
+  ros-database:
