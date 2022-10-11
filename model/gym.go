@@ -13,6 +13,7 @@ type Gym struct {
 	Lat        float64   `pg:"lat"`
 	Long       float64   `pg:"long"`
 	Amenities  string    `pg:"amenities"`
+	LogoName   string    `pg:"logo_name"`
 	CreatedOn  time.Time `pg:"created_on"`
 	ModifiedOn time.Time `pg:"modified_on"`
 }

@@ -28,8 +28,16 @@ func GymAPIToGymImagesEntity(images []gymApimodel.CreateGymImageReq) []entity.Gy
 			GymID:     img.GymID,
 			ImageType: img.ImageType,
 			Label:     img.Label,
+			Type:      img.Type,
 		}
 		e = append(e, entity)
 	}
+	return e
+}
+
+func GymAPIToLogoEntity(m gymApimodel.CreateLogoReq) entity.Gym {
+	var e entity.Gym
+	e.ID = m.GymID
+	e.LogoName = m.LogoName
 	return e
 }

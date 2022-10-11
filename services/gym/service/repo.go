@@ -11,6 +11,7 @@ import (
 
 type GymRepo interface {
 	Create(ctx context.Context, gym *entity.Gym) errors.Response
+	Update(ctx context.Context, gym *entity.Gym) errors.Response
 	GetAll(ctx context.Context, limit, offset int) ([]entity.Gym, errors.Response)
 	Count(ctx context.Context) (int, errors.Response)
 	GetById(ctx context.Context, gymId int) (*entity.Gym, errors.Response)

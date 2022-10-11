@@ -17,6 +17,7 @@ var GymModuleSet = wire.NewSet(
 	NewServerConfig,
 	NewMiddlewareConfig,
 	NewDBConfig,
+	NewImageConfig,
 
 	repo.NewGymRepoImpl,
 	wire.Bind(new(service.GymRepo), new(*repo.GymRepoImpl)),

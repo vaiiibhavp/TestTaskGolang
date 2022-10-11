@@ -17,12 +17,13 @@ import (
 	"github.com/scalent-io/healthapi/internal/converter"
 	c "github.com/scalent-io/healthapi/pkg/context"
 	"github.com/scalent-io/healthapi/pkg/errors"
+	"github.com/scalent-io/healthapi/pkg/server"
 	"github.com/scalent-io/healthapi/pkg/utils"
 	"github.com/scalent-io/healthapi/pkg/validation"
 	"github.com/scalent-io/healthapi/services/gym/service"
 )
 
-const MAX_UPLOAD_SIZE = 1024 * 1024 * 5
+const MAX_UPLOAD_SIZE = (1024 * 1024) * 5
 
 func CreateGymHandler(gymService service.GymService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -50,14 +51,14 @@ func CreateGymHandler(gymService service.GymService) http.HandlerFunc {
 	}
 }
 
-func GetAllGymHandler(gymService service.GymService) http.HandlerFunc {
+func GetAllGymHandler(gymService service.GymService, imageConfig *server.ImageConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID, _ := c.GetRequestIdFromContext(r.Context())
 		log.Info().Str("RequestID", reqID).Msg("GetAllGym handler")
 
 		params := r.URL.Query()
 
-		gyms, getGymsErr := gymService.GetAll(r.Context(), params)
+		gyms, getGymsErr := gymService.GetAll(r.Context(), params, imageConfig)
 		if getGymsErr != nil {
 			log.Error().Str("RequestID", reqID).Msg(getGymsErr.Error())
 			utils.SendResponseWithError(w, getGymsErr, nil)
@@ -67,7 +68,7 @@ func GetAllGymHandler(gymService service.GymService) http.HandlerFunc {
 	}
 }
 
-func GetGymByIdHandler(gymService service.GymService) http.HandlerFunc {
+func GetGymByIdHandler(gymService service.GymService, imageConfig *server.ImageConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID, _ := c.GetRequestIdFromContext(r.Context())
 		log.Info().Str("RequestID", reqID).Msg("GetGymById handler")
@@ -79,17 +80,22 @@ func GetGymByIdHandler(gymService service.GymService) http.HandlerFunc {
 			return
 		}
 
-		gym, getGymErr := gymService.GetById(r.Context(), gymId)
+		gym, getGymErr := gymService.GetById(r.Context(), gymId, imageConfig)
 		if getGymErr != nil {
 			log.Error().Str("RequestID", reqID).Msg(getGymErr.Error())
-			utils.SendResponseWithError(w, getGymErr, nil)
+			http.Error(w, "gymId not found", http.StatusBadRequest)
+			return
+		}
+
+		if gym == nil {
+			http.Error(w, "gymId not found", http.StatusBadRequest)
 			return
 		}
 		render.JSON(w, r, gym)
 	}
 }
 
-func SearchGymHandler(gymService service.GymService) http.HandlerFunc {
+func SearchGymHandler(gymService service.GymService, imageConfig *server.ImageConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID, _ := c.GetRequestIdFromContext(r.Context())
 		log.Info().Str("RequestID", reqID).Msg("SearchGym Handler")
@@ -98,7 +104,7 @@ func SearchGymHandler(gymService service.GymService) http.HandlerFunc {
 
 		fmt.Println("params", params)
 
-		data, searchErr := gymService.Search(r.Context(), params)
+		data, searchErr := gymService.Search(r.Context(), params, imageConfig)
 		if searchErr != nil {
 			log.Error().Str("RequestID", reqID).Msg(searchErr.Error())
 			utils.SendResponseWithError(w, searchErr, nil)
@@ -108,8 +114,9 @@ func SearchGymHandler(gymService service.GymService) http.HandlerFunc {
 	}
 }
 
-func UploadGymImagesHandler(gymService service.GymService) http.HandlerFunc {
+func UploadGymImagesHandler(gymService service.GymService, imageConfig *server.ImageConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		reqID, _ := c.GetRequestIdFromContext(r.Context())
 		log.Info().Str("RequestID", reqID).Msg("Upload GymImages Handler")
 
@@ -120,8 +127,32 @@ func UploadGymImagesHandler(gymService service.GymService) http.HandlerFunc {
 			return
 		}
 
+		params := r.URL.Query()
+		var imageType string
+		val, _ := strconv.Atoi(params.Get("type")) // @Todo: Need to handle error
+		if val == 2 {
+			imageType = "amenities"
+		}
+
+		//@Todo: The logic should be moved to service layer
+		res, getError := gymService.GetById(r.Context(), gymId, imageConfig)
+		if getError != nil {
+			log.Error().Str("RequestID", reqID).Msg(getError.Error())
+			http.Error(w, "gymId not found", http.StatusBadRequest)
+			return
+		}
+
+		// return appropriate message if not exist
+		if res == nil {
+			http.Error(w, "gymId not found", http.StatusBadRequest)
+			return
+		}
+
 		var gymImageReq []apimodel.CreateGymImageReq
 
+		//For time being file upload logic kept in web layer
+		//@Todo: The logic should be moved to repo layer
+		//@Todo: Instead storing images to local folder we have to upload to AWS S3 buckets
 		// 32 MB is the default used by FormFile()
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -172,8 +203,8 @@ func UploadGymImagesHandler(gymService service.GymService) http.HandlerFunc {
 			}
 
 			uuid := uuid.New().String()
-
-			fileName := fmt.Sprintf("./uploads/%s%s", uuid, filepath.Ext(fileHeader.Filename))
+			fname := fmt.Sprintf("%s%s", uuid, filepath.Ext(fileHeader.Filename))
+			fileName := fmt.Sprintf("./uploads/%s", fname)
 			f, err := os.Create(fileName)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -187,11 +218,11 @@ func UploadGymImagesHandler(gymService service.GymService) http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-
 			images := apimodel.CreateGymImageReq{
 				GymID:     gymId,
 				ImageType: filetype,
-				Label:     fileName,
+				Label:     fname,
+				Type:      imageType,
 			}
 			gymImageReq = append(gymImageReq, images)
 		}
@@ -205,7 +236,70 @@ func UploadGymImagesHandler(gymService service.GymService) http.HandlerFunc {
 			utils.SendResponseWithError(w, errors.NewResponseInternalServerError("internal server error"), nil)
 			return
 		}
-		log.Info().Str("RequestID", reqID).Msg("CreateGym completed at handler level")
+		log.Info().Str("RequestID", reqID).Msg("UploadGymImages completed at handler level")
+		render.JSON(w, r, data)
+	}
+}
+
+func UploadLogoHandler(gymService service.GymService, imageConfig *server.ImageConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reqID, _ := c.GetRequestIdFromContext(r.Context())
+		log.Info().Str("RequestID", reqID).Msg("Upload GymImages Handler")
+
+		id := chi.URLParam(r, "id")
+		gymId, err := strconv.Atoi(id)
+		if err != nil {
+			log.Error().Str("RequestID", reqID).Msg(err.Error())
+			return
+		}
+
+		//@Todo: The logic should be moved to service layer
+		res, getError := gymService.GetById(r.Context(), gymId, imageConfig)
+		if getError != nil {
+			log.Error().Str("RequestID", reqID).Msg(getError.Error())
+			http.Error(w, "gymId not found", http.StatusBadRequest)
+			return
+		}
+
+		if res.Status == "Failed" {
+			render.JSON(w, r, res)
+			return
+		}
+
+		//For time being file upload logic kept in web layer
+		//@Todo: The logic should be moved to repo layer
+		//@Todo: Instead storing images to local folder we have to upload to AWS S3 buckets
+		r.ParseMultipartForm(32 << 20)
+		file, handler, err := r.FormFile("logo")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+
+		// For time being upload file path kept as hard coded later will take it from config.yml
+		uuid := uuid.New().String()
+		fname := fmt.Sprintf("logos/%s%s", uuid, filepath.Ext(handler.Filename))
+		f, err := os.OpenFile("./uploads/"+fname, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer f.Close()
+		io.Copy(f, file)
+
+		logoRequest := apimodel.CreateLogoReq{
+			GymID:    gymId,
+			LogoName: fname,
+		}
+
+		data, err := gymService.UploadLogo(r.Context(), logoRequest)
+		if err != nil {
+			log.Error().Str("RequestID", reqID).Msg(err.Error())
+			utils.SendResponseWithError(w, errors.NewResponseInternalServerError("internal server error"), nil)
+			return
+		}
+		log.Info().Str("RequestID", reqID).Msg("UploadLogo completed at handler level")
 		render.JSON(w, r, data)
 	}
 }

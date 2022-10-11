@@ -12,3 +12,5 @@ db:
   user: "postgres"
   pass: "postgres"
   name: "gym"
+imageConfig: 
+  imageBaseURL: "http://localhost:4000/static/"  

@@ -47,7 +47,6 @@ func NewMiddlewareImpl(middlewareConfig *MiddlewareConfig) (*MiddlewareImpl, err
 func (m *MiddlewareImpl) Request() func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
 			ctx := r.Context()
 			// get the reqId from the header
 			reqId := r.Header.Get(contextConstants.REQUEST_ID)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -14,6 +15,7 @@ import (
 	"github.com/scalent-io/healthapi/entity"
 	c "github.com/scalent-io/healthapi/pkg/context"
 	"github.com/scalent-io/healthapi/pkg/errors"
+	"github.com/scalent-io/healthapi/pkg/server"
 )
 
 type GymServiceImpl struct {
@@ -57,9 +59,9 @@ func (s *GymServiceImpl) Create(ctx context.Context, gym *entity.Gym) (*apimodel
 }
 
 // GetAll return all the gyms
-func (s *GymServiceImpl) GetAll(ctx context.Context, params url.Values) (*gymapimodel.GetAllGymResponse, errors.Response) {
+func (s *GymServiceImpl) GetAll(ctx context.Context, params url.Values, imageConfig *server.ImageConfig) (*gymapimodel.GetAllGymResponse, errors.Response) {
 	reqID, _ := c.GetRequestIdFromContext(ctx)
-	log.Info().Str("RequestID", reqID).Msg("GetAllGym started on service layer")
+	log.Info().Str("RequestID", reqID).Msg("GetAll started on service layer")
 
 	page := params.Get("page")
 	limit := params.Get("limit")
@@ -74,15 +76,16 @@ func (s *GymServiceImpl) GetAll(ctx context.Context, params url.Values) (*gymapi
 		log.Error().Str("RequestID", reqID).Msg(err.Error())
 		return nil, errors.NewResponseError(http.StatusBadRequest, "should have vaild page no")
 	}
+	// Set default pagination values
+
+	if limitInt == 0 && pageInt == 0 {
+		limitInt = 20
+		pageInt = 1
+	}
 
 	// calculate offset
 	offset := CalcOffset(pageInt, limitInt)
 
-	// gyms, getGymsErr := s.gymRepo.GetAll(ctx, limitInt, offset)
-	// if getGymsErr != nil {
-	// 	log.Error().Str("RequestID", reqID).Msg(getGymsErr.Error())
-	// 	return nil, getGymsErr
-	// }
 	gyms, getGymsErr := s.gymRepo.GetGymImages(ctx, limitInt, offset)
 	if getGymsErr != nil {
 		log.Error().Str("RequestID", reqID).Msg(getGymsErr.Error())
@@ -102,6 +105,7 @@ func (s *GymServiceImpl) GetAll(ctx context.Context, params url.Values) (*gymapi
 			Message:    GET_ALL_GYM_SUCCESS,
 			Data:       gyms,
 		},
+		ImageBaseURL: imageConfig.ImageBaseURL,
 		TotalRecords: totalCount,
 		Page:         pageInt,
 		Limit:        limitInt,
@@ -110,25 +114,33 @@ func (s *GymServiceImpl) GetAll(ctx context.Context, params url.Values) (*gymapi
 }
 
 // GetById return single gym
-func (s *GymServiceImpl) GetById(ctx context.Context, gymID int) (*apimodel.Response, errors.Response) {
+func (s *GymServiceImpl) GetById(ctx context.Context, gymID int, imageConfig *server.ImageConfig) (*apimodel.Response, errors.Response) {
 	reqID, _ := c.GetRequestIdFromContext(ctx)
 	log.Info().Str("RequestID", reqID).Msg("GetById started on service layer")
 
 	gym, getGymsErr := s.gymRepo.GetById(ctx, gymID)
-	if getGymsErr != nil {
+	if getGymsErr != nil && !strings.Contains(getGymsErr.Error(), "no rows in result set") {
 		log.Error().Str("RequestID", reqID).Msg(getGymsErr.Error())
 		return nil, getGymsErr
 	}
+	if gym == nil {
+		return &apimodel.Response{
+			StatusCode: http.StatusOK,
+			Status:     STATUS_FAILED,
+			Message:    GET_GYM_BY_ID_FAILED,
+		}, nil
+	}
 
 	gymImages, getGymImagesErr := s.gymImagesRepo.GetImagesId(ctx, gymID)
-	if getGymImagesErr != nil {
+	if getGymImagesErr != nil && !strings.Contains(getGymImagesErr.Error(), "no rows in result set") {
 		log.Error().Str("RequestID", reqID).Msg(getGymImagesErr.Error())
 		return nil, getGymImagesErr
 	}
 
 	data := gymapimodel.GymDetailsResponse{
-		Gym:       gym,
-		GymImages: gymImages,
+		ImageBaseURL: imageConfig.ImageBaseURL,
+		Gym:          gym,
+		GymImages:    gymImages,
 	}
 
 	response := &apimodel.Response{
@@ -146,10 +158,10 @@ func CalcOffset(pageNum int, limit int) int {
 
 // Search find nearest gyms based on long and lat
 
-func (s *GymServiceImpl) Search(ctx context.Context, params url.Values) (*apimodel.Response, errors.Response) {
+func (s *GymServiceImpl) Search(ctx context.Context, params url.Values, imageConfig *server.ImageConfig) (*apimodel.Response, errors.Response) {
 
 	reqID, _ := c.GetRequestIdFromContext(ctx)
-	log.Info().Str("RequestID", reqID).Msg("GetAllGym started on service layer")
+	log.Info().Str("RequestID", reqID).Msg("Search started on service layer")
 
 	fmt.Println("params.Get(lat)", params.Get("lat"))
 
@@ -170,11 +182,16 @@ func (s *GymServiceImpl) Search(ctx context.Context, params url.Values) (*apimod
 		return nil, getGymsErr
 	}
 
+	searchResponse := gymapimodel.GymSearchResponse{
+		ImageBaseURL: imageConfig.ImageBaseURL,
+		GymDistance:  gyms,
+	}
+
 	response := &apimodel.Response{
 		StatusCode: http.StatusOK,
 		Status:     STATUS_SUCCESS,
-		Message:    "gyms featched successfully",
-		Data:       gyms,
+		Message:    GYM_SEARCH_SUCCESS,
+		Data:       searchResponse,
 	}
 
 	return response, nil
@@ -184,7 +201,7 @@ func (s *GymServiceImpl) Search(ctx context.Context, params url.Values) (*apimod
 
 func (s *GymServiceImpl) Upload(ctx context.Context, images []entity.GymImages) (*apimodel.Response, errors.Response) {
 	reqID, _ := c.GetRequestIdFromContext(ctx)
-	log.Info().Str("RequestID", reqID).Msg("CreateGym started on service layer")
+	log.Info().Str("RequestID", reqID).Msg("Upload started on service layer")
 
 	for _, img := range images {
 		img.CreatedOn = time.Now()
@@ -195,6 +212,34 @@ func (s *GymServiceImpl) Upload(ctx context.Context, images []entity.GymImages) 
 			return nil, err
 		}
 	}
+	response := &apimodel.Response{
+		StatusCode: http.StatusOK,
+		Status:     STATUS_SUCCESS,
+		Message:    MSG_GYM_IMAGE_UPLOD,
+	}
+	return response, nil
+}
+
+// Upload Logo
+
+func (s *GymServiceImpl) UploadLogo(ctx context.Context, req gymapimodel.CreateLogoReq) (*apimodel.Response, errors.Response) {
+	reqID, _ := c.GetRequestIdFromContext(ctx)
+	log.Info().Str("RequestID", reqID).Msg("UploadLogo started on service layer")
+
+	resp, getErr := s.gymRepo.GetById(ctx, req.GymID)
+	if getErr != nil {
+		log.Error().Str("RequestID", reqID).Msg(getErr.Error())
+		return nil, getErr
+	}
+	resp.LogoName = req.LogoName
+	resp.ModifiedOn = time.Now()
+
+	updateErr := s.gymRepo.Update(ctx, resp)
+	if updateErr != nil {
+		log.Error().Str("RequestID", reqID).Msg(updateErr.Error())
+		return nil, updateErr
+	}
+
 	response := &apimodel.Response{
 		StatusCode: http.StatusOK,
 		Status:     STATUS_SUCCESS,

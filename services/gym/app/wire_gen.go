@@ -41,10 +41,12 @@ func initServer() (*web.GymHandlerRegistry, error) {
 		return nil, err
 	}
 	serverConfig := NewServerConfig()
+	imageConfig := NewImageConfig()
 	gymHandlerRegistryOptions := web.GymHandlerRegistryOptions{
-		GymService: gymServiceImpl,
-		Middleware: middlewareImpl,
-		Config:     serverConfig,
+		GymService:  gymServiceImpl,
+		Middleware:  middlewareImpl,
+		Config:      serverConfig,
+		ImageConfig: imageConfig,
 	}
 	gymHandlerRegistry := web.NewHandlerRegistry(gymHandlerRegistryOptions)
 	return gymHandlerRegistry, nil
@@ -55,5 +57,6 @@ func initServer() (*web.GymHandlerRegistry, error) {
 var GymModuleSet = wire.NewSet(
 	NewServerConfig,
 	NewMiddlewareConfig,
-	NewDBConfig, repo.NewGymRepoImpl, wire.Bind(new(service.GymRepo), new(*repo.GymRepoImpl)), repo.NewGymImageRepoImpl, wire.Bind(new(service.GymImagesRepo), new(*repo.GymImageRepoImpl)), service.NewGymServiceImpl, wire.Bind(new(service.GymService), new(*service.GymServiceImpl)), middleware.NewMiddlewareImpl, wire.Bind(new(middleware.Middleware), new(*middleware.MiddlewareImpl)), gopg.NewSqlDB, wire.Struct(new(web.GymHandlerRegistryOptions), "*"), web.NewHandlerRegistry,
+	NewDBConfig,
+	NewImageConfig, repo.NewGymRepoImpl, wire.Bind(new(service.GymRepo), new(*repo.GymRepoImpl)), repo.NewGymImageRepoImpl, wire.Bind(new(service.GymImagesRepo), new(*repo.GymImageRepoImpl)), service.NewGymServiceImpl, wire.Bind(new(service.GymService), new(*service.GymServiceImpl)), middleware.NewMiddlewareImpl, wire.Bind(new(middleware.Middleware), new(*middleware.MiddlewareImpl)), gopg.NewSqlDB, wire.Struct(new(web.GymHandlerRegistryOptions), "*"), web.NewHandlerRegistry,
 )

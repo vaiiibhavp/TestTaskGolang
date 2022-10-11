@@ -15,6 +15,7 @@ type Gym struct {
 	Amenities  string
 	CreatedOn  time.Time
 	ModifiedOn time.Time
+	LogoName   string `json:"Logo"`
 }
 
 type GymDistance struct {
@@ -31,6 +32,10 @@ type GymDistance struct {
 	Distance   float64
 	CreatedOn  time.Time
 	ModifiedOn time.Time
+	ImageType  string
+	Label      string
+	Type       string
+	LogoName   string `json:"Logo"`
 }
 
 type GymImages struct {
@@ -38,6 +43,7 @@ type GymImages struct {
 	GymID      int
 	ImageType  string
 	Label      string
+	Type       string
 	CreatedOn  time.Time
 	ModifiedOn time.Time
 }
@@ -57,8 +63,10 @@ type GymDetails struct {
 	ModifiedOn time.Time
 	ImageType  string
 	Label      string
+	Type       string
+	LogoName   string `json:"Logo"`
 }
 
-type GymCount struct {
+type GymCount struct { //Gymcount
 	TotalRecords int `pg:"total_records"`
 }

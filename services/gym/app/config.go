@@ -9,9 +9,10 @@ import (
 )
 
 var config struct {
-	Server     server.Config
-	Middleware middleware.MiddlewareConfig
-	DB         gopg.DbConfig
+	Server      server.Config
+	Middleware  middleware.MiddlewareConfig
+	DB          gopg.DbConfig
+	ImageConfig server.ImageConfig
 }
 
 func initConfig() error {
@@ -38,4 +39,8 @@ func NewMiddlewareConfig() *middleware.MiddlewareConfig {
 
 func NewDBConfig() *gopg.DbConfig {
 	return &config.DB
+}
+
+func NewImageConfig() *server.ImageConfig {
+	return &config.ImageConfig
 }

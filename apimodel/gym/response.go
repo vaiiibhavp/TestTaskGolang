@@ -24,12 +24,19 @@ type Gym struct {
 
 type GetAllGymResponse struct {
 	apimodel.Response
-	Page         int `json:"page"`
-	Limit        int `json:"limit"`
-	TotalRecords int `json:"totalRecords"`
+	ImageBaseURL string `json:"imageBaseURL"`
+	Page         int    `json:"page"`
+	Limit        int    `json:"limit"`
+	TotalRecords int    `json:"totalRecords"`
 }
 
 type GymDetailsResponse struct {
-	Gym       *entity.Gym        `json:"gym"`
-	GymImages []entity.GymImages `json:"gymImages"`
+	ImageBaseURL string             `json:"imageBaseURL"`
+	Gym          *entity.Gym        `json:"gym"`
+	GymImages    []entity.GymImages `json:"gymImages"`
+}
+
+type GymSearchResponse struct {
+	ImageBaseURL string `json:"imageBaseURL"`
+	GymDistance  []entity.GymDistance
 }

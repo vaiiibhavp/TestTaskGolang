@@ -16,4 +16,10 @@ type CreateGymImageReq struct {
 	GymID     int    `json:"gym_id"`
 	ImageType string `json:"image_type"`
 	Label     string `json:"label"`
+	Type      string `json:"type"`
+}
+
+type CreateLogoReq struct {
+	GymID    int    `json:"gym_id"`
+	LogoName string `json:"logo_name"`
 }

@@ -38,13 +38,6 @@ func (r *GymRepoImpl) Create(ctx context.Context, gym *entity.Gym) errors.Respon
 	return nil
 }
 
-// 	if err != nil {
-// 		log.Error().Str("RequestID", reqID).Msg(err.Error())
-// 		return errors.NewResponseConflictError(err.Error())
-// 	}
-// 	return nil
-// }
-
 func (r *GymRepoImpl) GetAll(ctx context.Context, limit, offset int) ([]entity.Gym, errors.Response) {
 	reqID, _ := c.GetRequestIdFromContext(ctx)
 	log.Info().Str("RequestID", reqID).Msg("GetAll started on repository layer")
@@ -90,11 +83,13 @@ func (r *GymRepoImpl) Search(ctx context.Context, lat, long float64) ([]entity.G
 
 	var gyms []entity.GymDistance
 
-	query := `SELECT *, (point(long, lat) <@> point(?, ?)) * 1609.344 AS distance 
+	query := `SELECT g.*, (point(g.long, g.lat) <@> point(?, ?)) * 1609.344 AS distance , gi.image_type, gi.label, gi.type
 	FROM
-	 gyms
+	 gyms as g
+	 LEFT JOIN gym_images as gi
+	ON g.id = gi.gym_id 
 	WHERE
-		(point(long, lat) <@> point(?, ?)) < (10000 / 1609.344)
+		(point(g.long, g.lat) <@> point(?, ?)) < (10000 / 1609.344)
 	ORDER BY
 	 distance`
 
@@ -116,7 +111,7 @@ func (r *GymRepoImpl) GetGymImages(ctx context.Context, limit, offset int) ([]en
 
 	order := " order by g.created_on desc limit ? offset ?"
 
-	query := `SELECT g.*, gi.image_type, gi.label
+	query := `SELECT g.*, gi.image_type, gi.label, gi.type
 	FROM gyms as g
 	LEFT JOIN gym_images as gi
 	ON g.id = gi.gym_id `
@@ -149,4 +144,16 @@ func (r *GymRepoImpl) CountGetGymImages(ctx context.Context) (int, errors.Respon
 		return 0, errors.NewResponseConflictError(err.Error())
 	}
 	return count.TotalRecords, nil
+}
+
+func (r *GymRepoImpl) Update(ctx context.Context, gym *entity.Gym) errors.Response {
+	reqID, _ := c.GetRequestIdFromContext(ctx)
+	log.Info().Str("RequestID", reqID).Msg("create gym started on repository layer")
+
+	_, err := r.db.Model(gym).WherePK().Update()
+	if err != nil {
+		log.Error().Str("RequestID", reqID).Msg(err.Error())
+		return errors.NewResponseConflictError(err.Error())
+	}
+	return nil
 }

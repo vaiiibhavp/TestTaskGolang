@@ -13,6 +13,10 @@ const (
 	_defaultShutdownTimeout = 3 * time.Second
 )
 
+type ImageConfig struct {
+	ImageBaseURL string
+}
+
 type Config struct {
 	Port         int
 	ReadTimeout  time.Duration
