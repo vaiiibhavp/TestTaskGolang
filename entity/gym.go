@@ -49,6 +49,7 @@ type GymImages struct {
 }
 
 type GymDetails struct {
+	GID        int
 	ID         int
 	Name       string
 	GymType    string

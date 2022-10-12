@@ -83,13 +83,15 @@ func (r *GymRepoImpl) Search(ctx context.Context, lat, long float64) ([]entity.G
 
 	var gyms []entity.GymDistance
 
-	query := `SELECT g.*, (point(g.long, g.lat) <@> point(?, ?)) * 1609.344 AS distance , gi.image_type, gi.label, gi.type
+	query := `SELECT g.*, (point(g.long, g.lat) <@> point(?, ?)) * 1609.344 AS distance , string_agg(distinct gi.image_type,',') as image_type, 
+	string_agg(distinct gi.label,',') as label
 	FROM
 	 gyms as g
 	 LEFT JOIN gym_images as gi
 	ON g.id = gi.gym_id 
 	WHERE
 		(point(g.long, g.lat) <@> point(?, ?)) < (10000 / 1609.344)
+	GROUP BY g.id	
 	ORDER BY
 	 distance`
 
@@ -111,10 +113,11 @@ func (r *GymRepoImpl) GetGymImages(ctx context.Context, limit, offset int) ([]en
 
 	order := " order by g.created_on desc limit ? offset ?"
 
-	query := `SELECT g.*, gi.image_type, gi.label, gi.type
-	FROM gyms as g
-	LEFT JOIN gym_images as gi
-	ON g.id = gi.gym_id `
+	query := `SELECT  g.*,string_agg(distinct gi.image_type,',') as image_type, 
+	string_agg(distinct gi.label,',') as label
+		FROM gyms as g
+		LEFT JOIN gym_images as gi
+		ON g.id = gi.gym_id GROUP BY  g.id `
 
 	query = query + order
 
@@ -136,7 +139,7 @@ func (r *GymRepoImpl) CountGetGymImages(ctx context.Context) (int, errors.Respon
 	query := `SELECT count(g.id) as total_records
 	FROM gyms as g
 	LEFT JOIN gym_images as gi
-	ON g.id = gi.gym_id `
+	ON g.id = gi.gym_id GROUP BY g.id `
 
 	_, err := r.db.Query(&count, query)
 	if err != nil {
